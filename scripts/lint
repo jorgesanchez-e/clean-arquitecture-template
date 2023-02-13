@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -o errexit
+set -o nounset
+
+curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin ${GOLANGCILINT_VERSION}
+
+# make reports directory (if it doesn't exist)
+mkdir -p ${REPORTS_DIR}
+
+echo "Running golangci-lint"
+golangci-lint run ./...
+echo "no linting problems found"

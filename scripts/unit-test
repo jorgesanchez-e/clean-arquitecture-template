@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -e
+
+: ${REPORTS_DIR:?}
+
+mkdir -p "${REPORTS_DIR}"
+
+COVER_FILE="${REPORTS_DIR}/cover.out"
+
+echo "Running unit tests."
+
+# Generate tests report
+go test -v ./... -coverprofile ${COVER_FILE}  || status=$?
+
+# Print code coverage details
+go tool cover -func "${COVER_FILE}"
+
+exit ${status:-0}
