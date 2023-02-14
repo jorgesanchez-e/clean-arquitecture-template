@@ -2,8 +2,6 @@ package register
 
 import (
 	"time"
-
-	"github.com/google/uuid"
 )
 
 /**************************************************
@@ -11,16 +9,12 @@ import (
 * implement our business domain.                  *
 ***************************************************/
 
-type Line struct {
-	id      uuid.UUID
-	created time.Time
-	data    string
+type Identifier interface {
+	String() string
 }
 
-func NewLine(data string) Line {
-	return Line{
-		id:      uuid.New(),
-		created: time.Now(),
-		data:    data,
-	}
+type Line struct {
+	ID      Identifier
+	Created time.Time
+	Data    string
 }
