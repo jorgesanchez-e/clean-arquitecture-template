@@ -1,7 +1,5 @@
 package register
 
-import "github.com/google/uuid"
-
 /**************************************************
 * This file constains domain functionality to be  *
 * implemented.                                    *
@@ -9,5 +7,5 @@ import "github.com/google/uuid"
 
 type LineRepository interface {
 	Write(Line) error
-	Read(id uuid.UUID) *Line
+	Read(id Identifier) *Line
 }
