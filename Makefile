@@ -1,4 +1,4 @@
-APPNAME ?= diary
+APPNAME ?= example
 
 # used by `test` target
 export REPORTS_DIR=./reports

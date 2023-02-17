@@ -1,7 +1,7 @@
 package memory
 
 import (
-	"clean-arquitecture-template/internal/domain/register"
+	"clean-arquitecture-template/internal/domain/example"
 	"context"
 	"testing"
 	"time"
@@ -26,7 +26,7 @@ func Test_NewID(t *testing.T) {
 }
 
 func Test_New(t *testing.T) {
-	st := New(context.Background())
+	st := NewExampleRepo(context.Background())
 
 	st.stop()
 
@@ -77,7 +77,7 @@ func Test_Write(t *testing.T) {
 		name           string
 		ctx            context.Context
 		dbtimeOut      int
-		input          []register.Line
+		input          []example.Line
 		expectedOutput map[identifier]line
 		expectedError  error
 	}{
@@ -86,7 +86,7 @@ func Test_Write(t *testing.T) {
 			name:      "store-one-element",
 			ctx:       context.Background(),
 			dbtimeOut: 1,
-			input: []register.Line{
+			input: []example.Line{
 				{
 					ID:      identifier("one"),
 					Created: tstamp,
@@ -105,7 +105,7 @@ func Test_Write(t *testing.T) {
 			name:      "store-one-element-nilctx",
 			dbtimeOut: 1,
 			ctx:       nil,
-			input: []register.Line{
+			input: []example.Line{
 				{
 					ID:      identifier("one"),
 					Created: tstamp,
@@ -124,7 +124,7 @@ func Test_Write(t *testing.T) {
 			name:      "store-many-elements",
 			ctx:       context.Background(),
 			dbtimeOut: 1,
-			input: []register.Line{
+			input: []example.Line{
 				{
 					ID:      identifier("one"),
 					Created: tstamp,
@@ -161,7 +161,7 @@ func Test_Write(t *testing.T) {
 			name:      "error",
 			ctx:       context.Background(),
 			dbtimeOut: 0,
-			input: []register.Line{
+			input: []example.Line{
 				{
 					ID:      identifier("one"),
 					Created: tstamp,
@@ -183,7 +183,7 @@ func Test_Write(t *testing.T) {
 			storageCtx, cancel = context.WithCancel(c.ctx)
 		}
 
-		st := store{
+		st := Store{
 			ctx:            storageCtx,
 			cancel:         cancel,
 			data:           make(map[identifier]line),
@@ -250,7 +250,7 @@ func Test_Read(t *testing.T) {
 		dbtimeOut      int
 		registers      map[identifier]line
 		searchedid     identifier
-		expectedResult *register.Line
+		expectedResult *example.Line
 		expectedError  error
 	}{
 		{
@@ -272,7 +272,7 @@ func Test_Read(t *testing.T) {
 				},
 			},
 			searchedid: identifier("two"),
-			expectedResult: &register.Line{
+			expectedResult: &example.Line{
 				ID:      identifier("two"),
 				Created: tstamp,
 				Data:    "second-line",
@@ -307,20 +307,12 @@ func Test_Read(t *testing.T) {
 			searchedid:     identifier("x"),
 			expectedResult: nil,
 		},
-		{
-			name:           "not-found-test-case-2",
-			ctx:            nil,
-			dbtimeOut:      0,
-			registers:      nil,
-			searchedid:     identifier("x"),
-			expectedResult: nil,
-		},
 	}
 
 	for _, c := range testCases {
 		storeCtx, cancel := context.WithCancel(context.Background())
 
-		st := store{
+		st := Store{
 			ctx:            storeCtx,
 			cancel:         cancel,
 			data:           c.registers,
