@@ -1,6 +1,6 @@
 package register
 
-import "github.com/google/uuid"
+import "context"
 
 /**************************************************
 * This file constains domain functionality to be  *
@@ -8,6 +8,6 @@ import "github.com/google/uuid"
 ***************************************************/
 
 type LineRepository interface {
-	Write(Line) error
-	Read(id uuid.UUID) *Line
+	Write(context.Context, Line) error
+	Read(context.Context, Identifier) (*Line, error)
 }
