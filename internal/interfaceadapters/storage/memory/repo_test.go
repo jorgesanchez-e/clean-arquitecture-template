@@ -1,14 +1,29 @@
 package memory
 
 import (
+	"clean-arquitecture-template/internal/domain/register"
 	"context"
 	"testing"
 	"time"
 
-	"clean-arquitecture-template/internal/domain/register"
-
 	"github.com/stretchr/testify/assert"
 )
+
+func Test_Error(t *testing.T) {
+	err := ErrTimeOut
+
+	assert.Equal(t, "data store timeout", err.Error())
+}
+
+func Test_NewID(t *testing.T) {
+	id := NewID()
+
+	uuid, isIdentifier := id.(identifier)
+
+	assert.True(t, isIdentifier)
+	assert.NotEmpty(t, id.String())
+	assert.NotEmpty(t, uuid)
+}
 
 func Test_New(t *testing.T) {
 	st := New(context.Background())
@@ -22,33 +37,34 @@ func Test_New(t *testing.T) {
 }
 
 func Test_RequestType(t *testing.T) {
-	testCases := []struct {
+	testCase := []struct {
 		name         string
 		rtype        requestType
 		expectedName string
 	}{
 		{
-			name:         "read-request-case",
-			rtype:        readRequest,
-			expectedName: "read",
-		},
-		{
-			name:         "write-request-case",
+			name:         "write-requesttype-case",
 			rtype:        writeRequest,
 			expectedName: "write",
 		},
 		{
-			name:         "count-request-case",
+			name:         "read-request-type-case",
+			rtype:        readRequest,
+			expectedName: "read",
+		},
+		{
+			name:         "count-requesttype-case",
 			rtype:        countRequest,
 			expectedName: "count",
 		},
 	}
 
-	for _, c := range testCases {
-		rtype := c.rtype
+	for _, c := range testCase {
+		nameCase := c.name
 		expectedName := c.expectedName
+		rtype := c.rtype
 
-		t.Run(c.name, func(t *testing.T) {
+		t.Run(nameCase, func(t *testing.T) {
 			assert.Equal(t, expectedName, rtype.String())
 		})
 	}
@@ -59,22 +75,44 @@ func Test_Write(t *testing.T) {
 
 	testCases := []struct {
 		name           string
+		ctx            context.Context
 		dbtimeOut      int
 		input          []register.Line
-		expectedOutput map[id]line
+		expectedOutput map[identifier]line
 		expectedError  error
 	}{
+
 		{
 			name:      "store-one-element",
+			ctx:       context.Background(),
 			dbtimeOut: 1,
 			input: []register.Line{
 				{
-					ID:      id("one"),
+					ID:      identifier("one"),
 					Created: tstamp,
 					Data:    "first-line",
 				},
 			},
-			expectedOutput: map[id]line{
+			expectedOutput: map[identifier]line{
+				"one": {
+					createdAT: tstamp.Format(timeLayout),
+					data:      "first-line",
+				},
+			},
+			expectedError: nil,
+		},
+		{
+			name:      "store-one-element-nilctx",
+			dbtimeOut: 1,
+			ctx:       nil,
+			input: []register.Line{
+				{
+					ID:      identifier("one"),
+					Created: tstamp,
+					Data:    "first-line",
+				},
+			},
+			expectedOutput: map[identifier]line{
 				"one": {
 					createdAT: tstamp.Format(timeLayout),
 					data:      "first-line",
@@ -84,25 +122,26 @@ func Test_Write(t *testing.T) {
 		},
 		{
 			name:      "store-many-elements",
+			ctx:       context.Background(),
 			dbtimeOut: 1,
 			input: []register.Line{
 				{
-					ID:      id("one"),
+					ID:      identifier("one"),
 					Created: tstamp,
 					Data:    "first-line",
 				},
 				{
-					ID:      id("two"),
+					ID:      identifier("two"),
 					Created: tstamp,
 					Data:    "second-line",
 				},
 				{
-					ID:      id("three"),
+					ID:      identifier("three"),
 					Created: tstamp,
 					Data:    "third-line",
 				},
 			},
-			expectedOutput: map[id]line{
+			expectedOutput: map[identifier]line{
 				"one": {
 					createdAT: tstamp.Format(timeLayout),
 					data:      "first-line",
@@ -120,25 +159,34 @@ func Test_Write(t *testing.T) {
 		},
 		{
 			name:      "error",
+			ctx:       context.Background(),
 			dbtimeOut: 0,
 			input: []register.Line{
 				{
-					ID:      id("one"),
+					ID:      identifier("one"),
 					Created: tstamp,
 					Data:    "first-line",
 				},
 			},
 			expectedError:  ErrTimeOut,
-			expectedOutput: map[id]line{},
+			expectedOutput: map[identifier]line{},
 		},
 	}
 
 	for _, c := range testCases {
-		ctx, cancel := context.WithCancel(context.Background())
+		var storageCtx context.Context
+
+		var cancel context.CancelFunc
+		if c.ctx == nil {
+			storageCtx, cancel = context.WithCancel(context.Background())
+		} else {
+			storageCtx, cancel = context.WithCancel(c.ctx)
+		}
+
 		st := store{
-			ctx:            ctx,
+			ctx:            storageCtx,
 			cancel:         cancel,
-			data:           make(map[id]line),
+			data:           make(map[identifier]line),
 			request:        make(chan request),
 			timeoutSeconds: c.dbtimeOut,
 		}
@@ -146,14 +194,33 @@ func Test_Write(t *testing.T) {
 		input := c.input
 		expectedError := c.expectedError
 		expectedResult := c.expectedOutput
+		timeInSec := c.dbtimeOut
+		ctx := c.ctx
 
 		t.Run(c.name, func(t *testing.T) {
 			st.start()
 
 			var err error
 			for _, item := range input {
-				if err = st.Write(item); err != nil {
+				var cancel context.CancelFunc
+				var wctx context.Context
+
+				t.Log(item)
+
+				if ctx != nil {
+					wctx, cancel = context.WithTimeout(ctx, time.Duration(timeInSec)*time.Second)
+				} else {
+					wctx = nil
+				}
+
+				if err = st.Write(wctx, item); err != nil {
+					if wctx != nil {
+						cancel()
+					}
 					break
+				}
+				if wctx != nil {
+					cancel()
 				}
 			}
 
@@ -179,15 +246,18 @@ func Test_Read(t *testing.T) {
 
 	testCases := []struct {
 		name           string
+		ctx            context.Context
 		dbtimeOut      int
-		registers      map[id]line
-		searchedid     id
+		registers      map[identifier]line
+		searchedid     identifier
 		expectedResult *register.Line
+		expectedError  error
 	}{
 		{
 			name:      "found-test-case",
+			ctx:       context.Background(),
 			dbtimeOut: 1,
-			registers: map[id]line{
+			registers: map[identifier]line{
 				"one": {
 					createdAT: tstamp.Format(timeLayout),
 					data:      "first-line",
@@ -201,17 +271,18 @@ func Test_Read(t *testing.T) {
 					data:      "third-line",
 				},
 			},
-			searchedid: id("two"),
+			searchedid: identifier("two"),
 			expectedResult: &register.Line{
-				ID:      id("two"),
+				ID:      identifier("two"),
 				Created: tstamp,
 				Data:    "second-line",
 			},
 		},
 		{
 			name:      "not-found-test-case",
+			ctx:       context.Background(),
 			dbtimeOut: 1,
-			registers: map[id]line{
+			registers: map[identifier]line{
 				"one": {
 					createdAT: tstamp.Format(timeLayout),
 					data:      "first-line",
@@ -225,22 +296,32 @@ func Test_Read(t *testing.T) {
 					data:      "third-line",
 				},
 			},
-			searchedid:     id("x"),
+			searchedid:     identifier("x"),
 			expectedResult: nil,
 		},
 		{
 			name:           "not-found-test-case-2",
+			ctx:            nil,
 			dbtimeOut:      1,
 			registers:      nil,
-			searchedid:     id("x"),
+			searchedid:     identifier("x"),
+			expectedResult: nil,
+		},
+		{
+			name:           "not-found-test-case-2",
+			ctx:            nil,
+			dbtimeOut:      0,
+			registers:      nil,
+			searchedid:     identifier("x"),
 			expectedResult: nil,
 		},
 	}
 
 	for _, c := range testCases {
-		ctx, cancel := context.WithCancel(context.Background())
+		storeCtx, cancel := context.WithCancel(context.Background())
+
 		st := store{
-			ctx:            ctx,
+			ctx:            storeCtx,
 			cancel:         cancel,
 			data:           c.registers,
 			request:        make(chan request),
@@ -249,15 +330,18 @@ func Test_Read(t *testing.T) {
 
 		searchedID := c.searchedid
 		expectedResult := c.expectedResult
+		expectedError := c.expectedError
+		ctx := c.ctx
 
 		t.Run(c.name, func(t *testing.T) {
 			st.start()
 
-			result := st.Read(searchedID)
+			result, err := st.Read(ctx, searchedID)
 
 			st.stop()
 
 			assert.Equal(t, expectedResult, result)
+			assert.Equal(t, expectedError, err)
 		})
 	}
 }
