@@ -7,12 +7,12 @@ import (
 	"log"
 	"time"
 
-	"clean-arquitecture-template/internal/domain/register"
-
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"clean-arquitecture-template/internal/domain/example"
 )
 
 const (
@@ -35,7 +35,7 @@ type Config interface {
 
 type identifier primitive.ObjectID
 
-func NewID() register.Identifier {
+func NewID() example.Identifier {
 	return identifier(primitive.NewObjectID())
 }
 
@@ -58,7 +58,7 @@ type store struct {
 	collection mongoCollection
 }
 
-func New(ctx context.Context, conf Config) store {
+func NewExampleRepo(ctx context.Context, conf Config) store {
 	clientOptions := options.Client().ApplyURI(conf.GetDSN())
 	client, err := mongo.Connect(ctx, clientOptions)
 
@@ -90,19 +90,19 @@ func newLine(id primitive.ObjectID, createdAT time.Time, data string) line {
 	}
 }
 
-func (l *line) registerLine() *register.Line {
+func (l *line) registerLine() *example.Line {
 	if l == nil {
 		return nil
 	}
 
-	return &register.Line{
+	return &example.Line{
 		ID:      identifier(l.ID),
 		Created: l.CreatedAT,
 		Data:    l.Data,
 	}
 }
 
-func (s store) Write(ctx context.Context, wline register.Line) error {
+func (s store) Write(ctx context.Context, wline example.Line) error {
 	if ctx == nil {
 		ctx = s.ctx
 	}
@@ -123,7 +123,7 @@ func (s store) write(ctx context.Context, nline line) error {
 	return err
 }
 
-func (s store) Read(ctx context.Context, id register.Identifier) (*register.Line, error) {
+func (s store) Read(ctx context.Context, id example.Identifier) (*example.Line, error) {
 	if ctx == nil {
 		ctx = s.ctx
 	}
@@ -136,7 +136,7 @@ func (s store) Read(ctx context.Context, id register.Identifier) (*register.Line
 	}
 }
 
-func (s store) read(ctx context.Context, id primitive.ObjectID) (*register.Line, error) {
+func (s store) read(ctx context.Context, id primitive.ObjectID) (*example.Line, error) {
 	payload := new(line)
 	filter := bson.D{{Key: "_id", Value: id}}
 

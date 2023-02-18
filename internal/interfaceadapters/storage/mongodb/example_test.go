@@ -12,7 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
 
-	"clean-arquitecture-template/internal/domain/register"
+	"clean-arquitecture-template/internal/domain/example"
 )
 
 func Test_NewID(t *testing.T) {
@@ -34,7 +34,7 @@ func Test_RegisterLine(t *testing.T) {
 	testCases := []struct {
 		name           string
 		input          *line
-		expectedOutput *register.Line
+		expectedOutput *example.Line
 	}{
 		{
 			name: "normal-case",
@@ -43,7 +43,7 @@ func Test_RegisterLine(t *testing.T) {
 				CreatedAT: tstamp,
 				Data:      "first-line",
 			},
-			expectedOutput: &register.Line{
+			expectedOutput: &example.Line{
 				ID:      identifier(id),
 				Created: tstamp,
 				Data:    "first-line",
@@ -80,14 +80,14 @@ func Test_Write(t *testing.T) {
 
 	testCases := []struct {
 		name          string
-		input         register.Line
+		input         example.Line
 		ctx           context.Context
 		mongoRes      bson.D
 		expectedError error
 	}{
 		{
 			name: "success-case",
-			input: register.Line{
+			input: example.Line{
 				ID:      id,
 				Created: tstamp,
 				Data:    "first-line",
@@ -97,7 +97,7 @@ func Test_Write(t *testing.T) {
 		},
 		{
 			name: "error-id-case",
-			input: register.Line{
+			input: example.Line{
 				ID:      nil,
 				Created: tstamp,
 				Data:    "first-line",
@@ -107,7 +107,7 @@ func Test_Write(t *testing.T) {
 		},
 		{
 			name: "mogo-write-error-case",
-			input: register.Line{
+			input: example.Line{
 				ID:      id,
 				Created: tstamp,
 				Data:    "first-line",
@@ -157,8 +157,8 @@ func Test_Read(t *testing.T) {
 	testCases := []struct {
 		testName       string
 		ctx            context.Context
-		id             register.Identifier
-		expectedResult *register.Line
+		id             example.Identifier
+		expectedResult *example.Line
 		input          *line
 		expectedError  error
 		prepMongoMock  func(mt *mtest.T, l *line)
@@ -225,7 +225,7 @@ func Test_Read(t *testing.T) {
 				CreatedAT: tstamp,
 				Data:      "first-line",
 			},
-			expectedResult: &register.Line{
+			expectedResult: &example.Line{
 				ID:      id,
 				Created: tstamp,
 				Data:    "first-line",

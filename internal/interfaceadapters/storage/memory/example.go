@@ -1,11 +1,10 @@
 package memory
 
 import (
+	"clean-arquitecture-template/internal/domain/example"
 	"context"
 	"sync"
 	"time"
-
-	"clean-arquitecture-template/internal/domain/register"
 
 	"github.com/google/uuid"
 )
@@ -21,7 +20,7 @@ const (
 )
 
 var (
-	storage     store
+	storage     Store
 	storageOnce sync.Once
 )
 
@@ -41,13 +40,13 @@ type request struct {
 	requestType requestType
 	id          identifier
 	input       line
-	output      chan *register.Line
+	output      chan *example.Line
 	count       chan *int64
 }
 
 type identifier string
 
-func NewID() register.Identifier {
+func NewID() example.Identifier {
 	return identifier(uuid.New().String())
 }
 
@@ -60,7 +59,7 @@ type line struct {
 	data      string
 }
 
-type store struct {
+type Store struct {
 	ctx            context.Context
 	cancel         context.CancelFunc
 	data           map[identifier]line
@@ -68,7 +67,7 @@ type store struct {
 	timeoutSeconds int
 }
 
-func New(ctx context.Context) store {
+func NewExampleRepo(ctx context.Context) Store {
 	storageOnce.Do(func() {
 		dbCtx, dbCancel := context.WithCancel(ctx)
 		storage.ctx = dbCtx
@@ -83,11 +82,11 @@ func New(ctx context.Context) store {
 	return storage
 }
 
-func (s store) start() {
+func (s Store) start() {
 	go s.run()
 }
 
-func (s store) run() {
+func (s Store) run() {
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -105,11 +104,11 @@ func (s store) run() {
 	}
 }
 
-func (s store) stop() {
+func (s Store) stop() {
 	s.cancel()
 }
 
-func (s store) Write(ctx context.Context, n register.Line) error {
+func (s Store) Write(ctx context.Context, n example.Line) error {
 	var cancel context.CancelFunc
 
 	if ctx == nil {
@@ -120,7 +119,7 @@ func (s store) Write(ctx context.Context, n register.Line) error {
 	return s.write(ctx, n)
 }
 
-func (s store) write(ctx context.Context, input register.Line) error {
+func (s Store) write(ctx context.Context, input example.Line) error {
 	req := request{
 		requestType: writeRequest,
 		id:          identifier(input.ID.String()),
@@ -142,7 +141,7 @@ func (s store) write(ctx context.Context, input register.Line) error {
 	}
 }
 
-func (s store) Read(ctx context.Context, id register.Identifier) (*register.Line, error) {
+func (s Store) Read(ctx context.Context, id example.Identifier) (*example.Line, error) {
 	var cancel context.CancelFunc
 
 	if ctx == nil {
@@ -153,11 +152,11 @@ func (s store) Read(ctx context.Context, id register.Identifier) (*register.Line
 	return s.read(ctx, identifier(id.String()))
 }
 
-func (s store) read(ctx context.Context, id identifier) (*register.Line, error) {
+func (s Store) read(ctx context.Context, id identifier) (*example.Line, error) {
 	req := request{
 		requestType: readRequest,
 		id:          id,
-		output:      make(chan *register.Line),
+		output:      make(chan *example.Line),
 	}
 
 	select {
@@ -168,10 +167,10 @@ func (s store) read(ctx context.Context, id identifier) (*register.Line, error) 
 	}
 }
 
-func findLine(data map[identifier]line, itemID identifier) *register.Line {
+func findLine(data map[identifier]line, itemID identifier) *example.Line {
 	if item, exists := data[itemID]; exists {
 		createdAT, _ := time.Parse(timeLayout, item.createdAT)
-		return &register.Line{
+		return &example.Line{
 			ID:      itemID,
 			Created: createdAT,
 			Data:    item.data,
@@ -180,7 +179,7 @@ func findLine(data map[identifier]line, itemID identifier) *register.Line {
 	return nil
 }
 
-func (s store) count() *int64 {
+func (s Store) count() *int64 {
 	ctx, cancel := context.WithTimeout(s.ctx, time.Duration(s.timeoutSeconds))
 	defer cancel()
 
