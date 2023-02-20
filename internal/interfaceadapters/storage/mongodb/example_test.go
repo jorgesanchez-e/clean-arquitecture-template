@@ -16,15 +16,56 @@ import (
 )
 
 func Test_NewID(t *testing.T) {
-	id := NewID()
+	id := NewIdentifier().NewID()
 
-	mid, is := id.(identifier)
+	mid, is := id.(Identifier)
 	assert.True(t, is)
 
 	oid := mid.GetObjectID()
 	assert.NotEmpty(t, id.String())
 	assert.NotEmpty(t, mid.String())
 	assert.NotEmpty(t, oid.String())
+}
+
+// func IdentifierFromText(key string) (example.Identifier, error) {
+func Test_IdentifierFromText(t *testing.T) {
+	testCases := []struct {
+		name          string
+		key           string
+		identifier    Identifier
+		expectedError error
+	}{
+		{
+			name:          "successful-case",
+			key:           "63f39e5fb192144de70dfa58",
+			identifier:    Identifier{},
+			expectedError: nil,
+		},
+		{
+			name:          "error-case",
+			key:           "hola",
+			identifier:    Identifier{},
+			expectedError: ErrIdentifyer,
+		},
+	}
+
+	for _, c := range testCases {
+		testname := c.name
+		key := c.key
+		id := c.identifier
+		expectedError := c.expectedError
+
+		t.Run(testname, func(t *testing.T) {
+			result, err := id.ParseID(key)
+
+			if err != nil {
+				assert.ErrorIs(t, err, expectedError)
+			} else {
+				assert.Equal(t, true, ((example.Identifier)(result) == result))
+				assert.Equal(t, 24, len(result.String()))
+			}
+		})
+	}
 }
 
 func Test_RegisterLine(t *testing.T) {
@@ -44,7 +85,7 @@ func Test_RegisterLine(t *testing.T) {
 				Data:      "first-line",
 			},
 			expectedOutput: &example.Line{
-				ID:      identifier(id),
+				ID:      Identifier(id),
 				Created: tstamp,
 				Data:    "first-line",
 			},
@@ -75,7 +116,7 @@ func Test_RegisterLine(t *testing.T) {
 }
 
 func Test_Write(t *testing.T) {
-	id := identifier(primitive.NewObjectID())
+	id := Identifier(primitive.NewObjectID())
 	tstamp := time.Now()
 
 	testCases := []struct {
@@ -151,7 +192,7 @@ func Test_Write(t *testing.T) {
 }
 
 func Test_Read(t *testing.T) {
-	id := identifier(primitive.NewObjectID())
+	id := Identifier(primitive.NewObjectID())
 	tstamp := time.Date(2018, time.September, 16, 12, 0, 0, 0, time.FixedZone("", 2*60*60)).UTC()
 
 	testCases := []struct {
