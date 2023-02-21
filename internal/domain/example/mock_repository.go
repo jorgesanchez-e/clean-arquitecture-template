@@ -2,15 +2,18 @@ package example
 
 import (
 	"context"
+	"time"
 
 	"github.com/stretchr/testify/mock"
 )
 
 type MockRepository struct {
 	mock.Mock
+	CreatedTime time.Time
 }
 
 func (mr MockRepository) Write(ctx context.Context, line Line) error {
+	line.Created = mr.CreatedTime
 	args := mr.Called(ctx, line)
 	return args.Error(0)
 }
@@ -22,12 +25,19 @@ func (mr MockRepository) Read(ctx context.Context, id Identifier) (*Line, error)
 
 type MockIdentityProvider struct {
 	mock.Mock
+	ID MockIdentifier
+}
+
+type MockIdentifier string
+
+func (mid MockIdentifier) String() string {
+	return string(mid)
 }
 
 func (mip MockIdentityProvider) NewID() Identifier {
-	args := mip.Called()
+	mip.Called()
 
-	return args.Get(0).(Identifier)
+	return Identifier(mip.ID)
 }
 
 func (mip MockIdentityProvider) ParseID(ids string) (Identifier, error) {
