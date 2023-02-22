@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"regexp"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -19,6 +20,8 @@ const (
 	ErrIdentifyer   mongoError = "invalid mongodb identifyer"
 	ErrDataInserted mongoError = "db error on insert-one"
 	ErrMongoSystem  mongoError = "database error"
+
+	objectIDRegexpFormat string = `ObjectID\("([a-zA-Z0-9]+)"\)`
 )
 
 type mongoError string
@@ -33,19 +36,38 @@ type Config interface {
 	TableName() string
 }
 
-type identifier primitive.ObjectID
+type Identifier primitive.ObjectID
 
-func NewID() example.Identifier {
-	return identifier(primitive.NewObjectID())
+func NewIdentifier() Identifier {
+	return Identifier{}
 }
 
-func (id identifier) String() string {
-	idx := primitive.ObjectID(id)
-	return idx.String()
+func (id Identifier) NewID() example.Identifier {
+	return Identifier(primitive.NewObjectID())
 }
 
-func (id identifier) GetObjectID() primitive.ObjectID {
+func (id Identifier) String() string {
+	rx := regexp.MustCompile(objectIDRegexpFormat)
+	r := rx.FindStringSubmatch(primitive.ObjectID(id).String())
+
+	if len(r) != 2 {
+		return ""
+	}
+
+	return r[1]
+}
+
+func (id Identifier) GetObjectID() primitive.ObjectID {
 	return primitive.ObjectID(id)
+}
+
+func (id Identifier) ParseID(key string) (example.Identifier, error) {
+	oid, err := primitive.ObjectIDFromHex(key)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", err.Error(), ErrIdentifyer)
+	}
+
+	return Identifier(oid), nil
 }
 
 type mongoCollection interface {
@@ -96,7 +118,7 @@ func (l *line) registerLine() *example.Line {
 	}
 
 	return &example.Line{
-		ID:      identifier(l.ID),
+		ID:      Identifier(l.ID),
 		Created: l.CreatedAT,
 		Data:    l.Data,
 	}
@@ -107,7 +129,7 @@ func (s store) Write(ctx context.Context, wline example.Line) error {
 		ctx = s.ctx
 	}
 
-	if id, is := wline.ID.(identifier); !is {
+	if id, is := wline.ID.(Identifier); !is {
 		return ErrIdentifyer
 	} else {
 		return s.write(ctx, newLine(id.GetObjectID(), wline.Created, wline.Data))
@@ -128,7 +150,7 @@ func (s store) Read(ctx context.Context, id example.Identifier) (*example.Line, 
 		ctx = s.ctx
 	}
 
-	if id, is := id.(identifier); !is {
+	if id, is := id.(Identifier); !is {
 		return nil, ErrIdentifyer
 	} else {
 		r, err := s.read(ctx, id.GetObjectID())
