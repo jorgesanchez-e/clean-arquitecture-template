@@ -1,0 +1,11 @@
+---
+apps:
+  example:
+    input-ports:
+      rest:
+        address: ":8080"
+    interface-adapters:
+      storage:
+        mongodb:
+          url: "mongodb-dsn"
+        memory:
