@@ -16,7 +16,7 @@ import (
 )
 
 func Test_NewID(t *testing.T) {
-	id := NewIdentifier().NewID()
+	id := NewIdentityProvider().NewID()
 
 	mid, is := id.(Identifier)
 	assert.True(t, is)

@@ -38,7 +38,7 @@ type Config interface {
 
 type Identifier primitive.ObjectID
 
-func NewIdentifier() Identifier {
+func NewIdentityProvider() Identifier {
 	return Identifier{}
 }
 
