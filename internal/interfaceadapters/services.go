@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"clean-arquitecture-template/internal/domain/example"
-	"clean-arquitecture-template/internal/interfaceadapters/storage/memory"
-	"clean-arquitecture-template/internal/interfaceadapters/storage/mongodb"
+	"clean-arquitecture-template/internal/interfaceadapters/example/storage/memory"
+	"clean-arquitecture-template/internal/interfaceadapters/example/storage/mongodb"
 )
 
 type MemExampleRepoService struct {
