@@ -2,7 +2,10 @@ package mongodb
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -320,6 +323,96 @@ func Test_Read(t *testing.T) {
 			result, err := st.Read(ctx, id)
 			assert.Equal(t, expectedResult, result)
 			assert.ErrorIs(t, err, expectedError)
+		})
+	}
+}
+
+type configReaderMock struct {
+	f func(node string) (io.Reader, error)
+}
+
+func (crm configReaderMock) Find(node string) (io.Reader, error) {
+	return crm.f(node)
+}
+
+type readerMock struct {
+	err error
+}
+
+func (rm readerMock) Read(p []byte) (n int, err error) {
+	return 0, rm.err
+}
+
+func Test_ReadConfig(t *testing.T) {
+	testCases := []struct {
+		testName             string
+		buildConfigReader    func(node string) (io.Reader, error)
+		expectedDSN          string
+		expectedDatabaseName string
+		expectedCollection   string
+		expectedError        error
+	}{
+		{
+			testName: "config-read-error-case",
+			buildConfigReader: func(node string) (io.Reader, error) {
+				return nil, errors.New("reader error")
+			},
+			expectedError: ErrReadConfig,
+		},
+		{
+			testName: "config-reader-error-case",
+			buildConfigReader: func(node string) (io.Reader, error) {
+				return readerMock{
+					err: errors.New("read error"),
+				}, nil
+			},
+			expectedError: ErrReadConfig,
+		},
+		{
+			testName: "config-unmarshal-error-case",
+			buildConfigReader: func(node string) (io.Reader, error) {
+				return strings.NewReader("{"), nil
+			},
+			expectedError: ErrReadConfig,
+		},
+		{
+			testName: "success-case",
+			buildConfigReader: func(node string) (io.Reader, error) {
+				return strings.NewReader(`{
+					"dsn": "mongodb-dsn",
+					"database": "database-name",
+					"collection": "collection-name"}
+				`), nil
+			},
+			expectedDSN:          "mongodb-dsn",
+			expectedDatabaseName: "database-name",
+			expectedCollection:   "collection-name",
+			expectedError:        nil,
+		},
+	}
+
+	for _, c := range testCases {
+		name := c.testName
+		expectedDSN := c.expectedDSN
+		expectedDBName := c.expectedDatabaseName
+		expectedCollection := c.expectedCollection
+		expectedError := c.expectedError
+		readerMock := configReaderMock{
+			c.buildConfigReader,
+		}
+
+		t.Run(name, func(t *testing.T) {
+			cnf, err := ReadConfig(readerMock)
+
+			if cnf == nil {
+				assert.Nil(t, cnf)
+				assert.ErrorIs(t, err, expectedError)
+			} else {
+				assert.Equal(t, expectedDSN, cnf.DSN())
+				assert.Equal(t, expectedDBName, cnf.Database())
+				assert.Equal(t, expectedCollection, cnf.Collection())
+				assert.Equal(t, expectedError, err)
+			}
 		})
 	}
 }

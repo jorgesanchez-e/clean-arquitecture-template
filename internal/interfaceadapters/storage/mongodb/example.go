@@ -2,8 +2,10 @@ package mongodb
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"regexp"
 	"time"
@@ -20,8 +22,11 @@ const (
 	ErrIdentifyer   mongoError = "invalid mongodb identifyer"
 	ErrDataInserted mongoError = "db error on insert-one"
 	ErrMongoSystem  mongoError = "database error"
+	ErrReadConfig   mongoError = "unable to tead message"
 
 	objectIDRegexpFormat string = `ObjectID\("([a-zA-Z0-9]+)"\)`
+
+	ConfigNode string = "apps.example.interface-adapters.storage.mongodb"
 )
 
 type mongoError string
@@ -31,9 +36,50 @@ func (me mongoError) Error() string {
 }
 
 type Config interface {
-	GetDSN() string
-	DatabaseName() string
-	TableName() string
+	DSN() string
+	Database() string
+	Collection() string
+}
+
+type config struct {
+	Dsn            string `json:"dsn"`
+	DbName         string `json:"database"`
+	CollectionName string `json:"collection"`
+}
+
+func (c config) DSN() string {
+	return c.Dsn
+}
+
+func (c config) Database() string {
+	return c.DbName
+}
+
+func (c config) Collection() string {
+	return c.CollectionName
+}
+
+type ConfigReader interface {
+	Find(node string) (io.Reader, error)
+}
+
+func ReadConfig(cfnReader ConfigReader) (Config, error) {
+	reader, err := cfnReader.Find(ConfigNode)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", err.Error(), ErrReadConfig)
+	}
+
+	d, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", err.Error(), ErrReadConfig)
+	}
+
+	cnf := config{}
+	if err = json.Unmarshal(d, &cnf); err != nil {
+		return nil, fmt.Errorf("%s: %w", err.Error(), ErrReadConfig)
+	}
+
+	return cnf, nil
 }
 
 type Identifier primitive.ObjectID
@@ -81,7 +127,7 @@ type store struct {
 }
 
 func NewExampleRepo(ctx context.Context, conf Config) store {
-	clientOptions := options.Client().ApplyURI(conf.GetDSN())
+	clientOptions := options.Client().ApplyURI(conf.DSN())
 	client, err := mongo.Connect(ctx, clientOptions)
 
 	if err != nil {
@@ -94,7 +140,7 @@ func NewExampleRepo(ctx context.Context, conf Config) store {
 
 	return store{
 		ctx:        ctx,
-		collection: client.Database(conf.DatabaseName()).Collection(conf.TableName()),
+		collection: client.Database(conf.Database()).Collection(conf.Collection()),
 	}
 }
 

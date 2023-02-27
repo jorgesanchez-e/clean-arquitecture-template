@@ -10,8 +10,8 @@ type Services struct {
 	Server http.Server
 }
 
-func NewServices(ctx context.Context, app app.Services) Services {
+func NewServices(ctx context.Context, app app.Services, cnf http.Config) Services {
 	return Services{
-		Server: http.NewServer(ctx, app),
+		Server: http.NewServer(ctx, app, cnf),
 	}
 }
